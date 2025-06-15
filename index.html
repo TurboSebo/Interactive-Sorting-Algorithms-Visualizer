@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pl-PL">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizualizator Algorytmów Sortowania</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif; /* Użycie czcionki Inter zgodnie z wytycznymi */
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh; /* Zapewnienie, że ciało zajmuje całą wysokość widoku */
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #fff;
+            display: block; /* Zapewnia brak dodatkowej przestrzeni pod canvasem */
+            width: 100%; /* Sprawia, że canvas jest responsywny do swojego kontenera */
+            max-width: 1024px; /* Ogranicza maksymalną szerokość dla większych ekranów */
+            height: auto; /* Zachowuje proporcje */
+            min-height: 300px; /* Minimalna wysokość dla mniejszych ekranów */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtelny cień */
+            border-radius: 8px; /* Zaokrąglone rogi dla canvasa */
+        }
+        /* Stylizacja przycisków algorytmów */
+        .algorithm-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px; 
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease; 
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .algorithm-button:hover:not(.selected):not(:disabled) {
+            background-color: #45a049; /* Ciemniejszy kolor po najechaniu */
+            transform: translateY(-1px); /* Lekkie uniesienie po najechaniu */
+        }
+        .algorithm-button.selected {
+            background-color: #FF5722; /* Kolor zaznaczonego przycisku */
+            color: white;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2); /* Wewnętrzny cień dla zaznaczonego */
+        }
+        .algorithm-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        main {
+            text-align: center;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 1024px; /* Dopasowanie do maksymalnej szerokości canvasa */
+            padding: 0 10px;
+            box-sizing: border-box;
+            position: relative; /* Potrzebne do absolutnego pozycjonowania pola informacyjnego */
+        }
+        #algorithms-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px; /* Odstęp między przyciskami */
+            margin-bottom: 20px;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 15px; /* Większy odstęp dla kontrolek */
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        }
+        .control-button, #info-button {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .control-button:hover:not(:disabled), #info-button:hover:not(:disabled) {
+            background-color: #1976D2;
+            transform: translateY(-1px);
+        }
+        .control-button:disabled, #info-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #info-button {
+            background-color: #9C27B0;
+        }
+        #speed, #size {
+            width: 150px; /* Stała szerokość dla suwaków */
+        }
+        label {
+            white-space: nowrap; /* Zapobiega zawijaniu się etykiet */
+        }
+        /* Style dla pola informacyjnego algorytmu */
+        #algorithm-info-box {
+            position: absolute;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e0e0e0;
+            z-index: 100; /* Zapewnia, że jest nad innymi elementami */
+            max-width: 300px; /* Ogranicza szerokość dla czytelności */
+            text-align: left;
+            opacity: 0; /* Początkowo ukryte */
+            visibility: hidden; /* Początkowo ukryte */
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transform: translateY(10px); /* Lekkie przesunięcie dla animacji */
+        }
+        #algorithm-info-box.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Wizualizator Algorytmów Sortowania</h1>
+    </header>
+    <main>
+        <p>Wybierz algorytm sortowania, aby zobaczyć jego działanie.</p>
+        <div id="algorithms-buttons">
+            <div class="algorithm-button" id="bubble-sort" data-algorithm-id="bubble">Sortowanie Bąbelkowe</div>
+            <div class="algorithm-button" id="quick-sort" data-algorithm-id="quick">Quick Sort</div>
+            <div class="algorithm-button" id="selection-sort" data-algorithm-id="selection">Sortowanie Przez Wybór</div>
+            <div class="algorithm-button" id="insertion-sort" data-algorithm-id="insertion">Sortowanie Przez Wstawianie</div>
+            <div class="algorithm-button" id="merge-sort" data-algorithm-id="merge">Sortowanie Przez Scalanie</div>
+        </div>
+        <canvas id="canvas"></canvas>
+
+        <div id="algorithm-info-box">
+            <h3 id="info-box-title"></h3>
+            <p id="info-box-description"></p>
+        </div>
+
+        <div id="controls">
+            <div>
+                <label for="speed">Prędkość:</label>
+                <input type="range" id="speed" min="1" max="100" value="50">
+                <span id="speed-value">50</span>
+            </div>
+            <label for="no-delay">
+                <input type="checkbox" id="no-delay">
+                <span>Bez dodatkowego opóźnienia</span>
+            </label>
+
+            <div>
+                <label for="size">Rozmiar tablicy:</label>
+                <input type="range" id="size" min="10" max="200" value="50"> <span id="size-value">50</span>
+            </div>
+
+            <button class="algorithm-button" id="generate">Generuj Losową Tablicę</button>
+            <button class="algorithm-button" id="generate-to-n">Generuj Tablicę (n do 0)</button>
+            <div class="control-button" id="start">Start</div>
+            <div class="control-button" id="stop">Stop</div>
+            <div class="control-button" id="info-button">O algorytmie</div>
+        </div>
+    </main>
+
+    <script>
+        // Pobranie elementu canvas i jego kontekstu 2D
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Pobranie przycisków algorytmów sortowania
+        const bubbleSortButton = document.getElementById('bubble-sort');
+        const quickSortButton = document.getElementById('quick-sort');
+        const selectionSortButton = document.getElementById('selection-sort');
+        const insertionSortButton = document.getElementById('insertion-sort');
+        const mergeSortButton = document.getElementById('merge-sort');
+        const algorithmButtonsList = document.querySelectorAll('#algorithms-buttons .algorithm-button');
+
+        // Pobranie przycisków sterujących i suwaków
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        const generateButton = document.getElementById('generate');
+        const generateFromNButton = document.getElementById('generate-to-n');
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speed-value');
+        const sizeSlider = document.getElementById('size');
+        const sizeValue = document.getElementById('size-value');
+
+        // Pobranie checkboxa wyłączającego opóźnienie
+        const noDelayCheckbox = document.getElementById('no-delay');
+
+        // Pobranie elementów pola informacyjnego
+        const algorithmInfoBox = document.getElementById('algorithm-info-box');
+        const infoBoxTitle = document.getElementById('info-box-title');
+        const infoBoxDescription = document.getElementById('info-box-description');
+        const infoButton = document.getElementById('info-button'); // Referencja do przycisku "O algorytmie"
+
+        // Zmienne inicjalizacyjne
+        let array = [];
+        let isSorting = false;
+        let currentAlgorithm = null;
+        let sortSpeed = Number(speedSlider.value); // Domyślna prędkość
+
+        // Definicja kolorów dla stanów wizualizacji
+        const COMPARE_COLOR = '#F5A623'; // Pomarańczowy
+        const SWAP_COLOR = '#D0021B'; // Czerwony
+        const SORTED_COLOR = '#7ED321'; // Zielony
+        const DEFAULT_COLOR = '#4A90E2'; // Niebieski (dla aktywnych elementów niebędących w porównaniu/zamianie)
+        const BAR_COLOR = '#4A90E2'; // Domyślny kolor słupków
+
+        // Opisy dla każdego algorytmu
+        const algorithmDescriptions = {
+            'bubble': {
+                title: 'Sortowanie Bąbelkowe',
+                description: 'Sortowanie bąbelkowe to prosty algorytm sortowania, który wielokrotnie przechodzi przez listę, porównuje sąsiednie elementy i zamienia je, jeśli są w złej kolejności. Przejścia przez listę są powtarzane, aż nie będzie żadnych zamian, co oznacza, że lista jest posortowana. Jest to algorytm o złożoności czasowej O(n^2).'
+            },
+            'quick': {
+                title: 'Quick Sort',
+                description: 'Quick Sort to wydajny algorytm sortowania oparty na zasadzie "dziel i zwyciężaj". Działa poprzez wybranie elementu "pivot", a następnie partycjonowanie tablicy na dwie podtablice: elementy mniejsze od pivota i elementy większe od pivota. Następnie rekurencyjnie sortuje podtablice. Jego średnia złożoność czasowa to O(n \\log n), ale w najgorszym przypadku może wynosić $O(n^2)$.'
+            },
+            'selection': {
+                title: 'Sortowanie Przez Wybór',
+                description: 'Sortowanie przez wybór to algorytm sortowania in-place. Dzieli listę na dwie części: posortowaną i nieposortowaną. W każdej iteracji znajduje najmniejszy (lub największy) element z nieposortowanej części i umieszcza go na końcu posortowanej części. Złożoność czasowa to zawsze O(n^2).'
+            },
+            'insertion': {
+                title: 'Sortowanie Przez Wstawianie',
+                description: 'Sortowanie przez wstawianie buduje posortowaną tablicę (lub listę) po jednym elemencie na raz. Iteruje po elementach wejściowych i dla każdego elementu wstawia go do odpowiedniego miejsca w już posortowanej części tablicy. Jest efektywny dla małych zbiorów danych i częściowo posortowanych danych. Złożoność czasowa to $O(n^2)$ w najgorszym i średnim przypadku, ale O(n) w najlepszym przypadku.'
+            },
+            'merge': {
+                title: 'Sortowanie Przez Scalanie',
+                description: 'Sortowanie przez scalanie to algorytm "dziel i zwyciężaj". Działa poprzez rekurencyjne dzielenie tablicy na dwie połowy, aż do momentu, gdy każda podtablica zawiera tylko jeden element (co jest z definicji posortowane). Następnie te podtablice są scalane z powrotem w posortowany sposób. Jest to stabilny algorytm o złożoności czasowej O(n \\log n) w każdym przypadku (najgorszym, średnim i najlepszym).'
+            }
+        };
+
+        // Funkcja inicjalizująca wizualizator
+        function init() {
+            /* Ustawienie wymiarów canvasa na podstawie jego rozmiaru wyświetlanego (kontrolowanego przez CSS)
+            Zapewnia to, że bufor rysowania odpowiada rozmiarowi wizualnemu, zapobiegając rozmyciu */
+            canvas.width = canvas.clientWidth; // Ustawienie szerokości canvasa na jego szerokość wyświetlaną
+            canvas.height = canvas.clientHeight; // Ustawienie wysokości canvasa na jego wysokość wyświetlaną
+            generateArray(); // Wygenerowanie początkowej tablicy
+            selectAlgorithm(bubbleSortButton); // Domyślnie wybierz sortowanie bąbelkowe
+            currentAlgorithm = 'bubble';
+        }
+
+        function generateArray() {         // Generowanie nowej tablicy z losowymi wartościami
+            isSorting = false;  // Zatrzymanie trwającego sortowania przed wygenerowaniem nowej tablicy
+            toggleControls(false); // Ponowne włączenie kontrolek
+            hideAlgorithmInfo(); // Ukrycie pola informacyjnego podczas generowania nowej tablicy
+
+            let size = Number(sizeSlider.value); // Pobranie rozmiaru tablicy z suwaka
+            let getRandomNumber = () => {             // Funkcja generująca losową liczbę z zakresu od 1 do 100
+                return Math.floor(Math.random() * 100) + 1;
+            };
+
+            const arrayLength = size; 
+            const randomNumbers = []; 
+
+            for (let i = 0; i < arrayLength; i++) {
+                randomNumbers.push(getRandomNumber()); // Dodaj losową liczbę do tablicy
+            }
+            array = randomNumbers; // Przypisz wygenerowaną tablicę
+            drawArray(); // Narysowanie nowo wygenerowanej tablicy
+        }
+
+        // Generowanie tablicy w kolejności malejącej (od n do 0)
+        function generateArrayFromN() {
+            isSorting = false; // Zatrzymanie trwającego sortowania przed wygenerowaniem nowej tablicy
+            toggleControls(false); // Ponowne włączenie kontrolek
+            hideAlgorithmInfo(); // Ukrycie pola informacyjnego podczas generowania nowej tablicy
+
+            let size = Number(sizeSlider.value);
+            let descendingArray = []; // Pusta tablica
+
+            for (let i = 0; i < size; i++) {
+                descendingArray.push(size - i); // Dodaj wartość od rozmiaru w dół do 1
+            }
+
+            array = descendingArray; // Przypisz wygenerowaną tablicę
+            drawArray(); // Narysowanie nowo wygenerowanej tablicy
+        }
+
+        // Rysowanie tablicy na canvasie
+        // Obiekt 'colors' pozwala na kolorowanie poszczególnych słupków w różny sposób
+        function drawArray(colors = {}) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Wyczyść cały canvas
+            
+            // Obsługa przypadku pustej tablicy
+            if (array.length === 0) {
+                return;
+            }
+
+            const maxVal = Math.max(...array); // Znajdź maksymalną wartość do skalowania wysokości słupków
+            const barWidth = canvas.width / array.length; // Oblicz szerokość każdego słupka na podstawie szerokości canvasa i liczby elementów w tablicy
+            const spacing = barWidth * 0.1; // 10% odstępu między słupkami
+            const actualBarWidth = barWidth - spacing; // Rzeczywista szerokość
+
+            for (let i = 0; i < array.length; i++) { // Pętla rysująca każdy słupek
+                // Oblicza wysokość słupka w stosunku do wysokości canvasa i maksymalnej wartości
+                const barHeight = (array[i] / maxVal) * canvas.height * 0.9; // Używa 90% wysokości canvasa, aby zostawić miejsce na tekst
+                const x = i * barWidth + spacing / 2; // Pozycja X słupka
+                const y = canvas.height - barHeight; // Pozycja Y (słupki rysują się od dołu do góry)
+
+                ctx.fillStyle = colors[i] || BAR_COLOR; // Użyj koloru z obiektu 'colors' lub domyślnego koloru słupka
+                ctx.fillRect(x, y, actualBarWidth, barHeight); // Narysuj słupek
+
+                // Rysowanie wartości na słupkach dla mniejszych tablic
+                if (array.length <= 30 && actualBarWidth > 10) {
+                    ctx.fillStyle = '#000'; // Kolor tekstu
+                    ctx.textAlign = 'center'; // Wyśrodkuj tekst poziomo
+                    ctx.font = Math.min(12, actualBarWidth / 2) + 'px Arial'; // Dynamiczne dostosowanie rozmiaru czcionki
+                    
+                    // Obróć tekst, jeśli słupek jest zbyt wąski
+                    if (actualBarWidth < 20) {
+                        ctx.save(); // Zapisz aktualny stan canvasa
+                        ctx.translate(x + actualBarWidth / 2, y - 5); // Przesuń początek układu współrzędnych do pozycji tekstu
+                        ctx.rotate(-Math.PI / 2); // Obróć o 90 stopni przeciwnie do ruchu wskazówek zegara
+                        ctx.fillText(array[i], 0, 0); // Narysuj tekst w nowym początku układu współrzędnych
+                        ctx.restore(); // Przywróć poprzedni stan canvasa, by nie obracać wszystkiego dalej
+                    } else {
+                        ctx.fillText(array[i], x + actualBarWidth / 2, y - 5); // Narysuj tekst nad słupkiem
+                    }
+                }
+            }
+        }
+
+        // Funkcja pomocnicza do pauzowania wykonania (opóźnienie wizualne)
+        function sleep(ms) {
+            
+            if (noDelayCheckbox && noDelayCheckbox.checked) {
+                return Promise.resolve(); // Jeśli zaznaczono 'bez opóźnienia', natychmiast zwróć resolved Promise
+            }
+            return new Promise(resolve => setTimeout(resolve, ms)); // Zwraca Promise, który rozwiązuje się po określonym czasie
+        }
+
+        // Funkcja do włączania/wyłączania kontrolek podczas sortowania
+        function toggleControls(disabled) {
+            bubbleSortButton.disabled = disabled;
+            quickSortButton.disabled = disabled;
+            selectionSortButton.disabled = disabled;
+            insertionSortButton.disabled = disabled;
+            mergeSortButton.disabled = disabled;
+            generateButton.disabled = disabled;
+            generateFromNButton.disabled = disabled;
+            sizeSlider.disabled = disabled;
+            infoButton.disabled = disabled; // Wyłącz przycisk informacyjny podczas sortowania
+            speedSlider.disabled = disabled && noDelayCheckbox.checked; // Wyłącza suwak prędkości tylko jeśli 'bez opóźnienia' jest zaznaczone
+        }
+
+        // Funkcja rozpoczynająca wybrany algorytm sortowania
+        async function startSorting(algorithm) {
+            if (isSorting) return; // Zapobiega uruchomieniu, jeśli sortowanie już trwa
+            isSorting = true;
+            toggleControls(true); // Wyłącz kontrolki
+            hideAlgorithmInfo(); // Ukryj pole informacyjne, gdy sortowanie się rozpoczyna
+
+            /* Tworzenie kopii tablicy do sortowania, aby oryginał mógł być ponownie wygenerowany
+            Dla sortowania przez scalanie przekywana jest oryginalna tablica, ponieważ ten algorytm modyfikuje tablicę bezpośrednio.
+            
+         */
+            const arrayCopy = [...array]; 
+
+            // Wybór i wykonanie algorytmu sortowania
+            switch (algorithm) {
+                case 'bubble':
+                    await bubbleSort();
+                    break;
+                case 'quick':
+                    await quickSort(array, 0, array.length - 1);
+                    break;
+                case 'selection':
+                    await selectionSort();
+                    break;
+                case 'insertion':
+                    await insertionSort();
+                    break;
+                case 'merge':
+                    await mergeSort(array);  // Sortowanie przez scalanie modyfikuje tablicę bezpośrednio, więc przekazujemy 'array'
+                    break;
+                default:
+                    console.error('Nieznany algorytm sortowania');
+            }
+
+            // Po zakończeniu sortowania (lub jego zatrzymaniu), pokoloruj wszystkie posortowane elementy
+            if (isSorting) { // Tylko jeśli sortowanie nie zostało przerwane przez 'Stop'
+                const sortedColors = {}; 
+                for (let i = 0; i < array.length; i++) {
+                    sortedColors[i] = SORTED_COLOR;
+                }
+                drawArray(sortedColors); // Pokaż wszystkie elementy jako posortowane
+            }
+            isSorting = false; // Zresetuj flagę sortowania
+            toggleControls(false); // Ponownie włącz kontrolki
+        }
+
+        /* --- Implementacje algorytmów sortowania */
+
+        // Sortowanie Bąbelkowe
+        async function bubbleSort() {
+            let n = array.length;
+            let swapped; // Flaga do sprawdzania, czy dokonano zamiany w danym przejściu
+            const colors = {}; // Obiekt do przechowywania aktualnych kolorów słupków
+
+            do {
+                if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+                swapped = false;
+                for (let i = 0; i < n - 1; i++) {
+                    if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop (pętla wewnętrzna)
+
+                    // Podświetl elementy porównywane
+                    colors[i] = COMPARE_COLOR;
+                    colors[i + 1] = COMPARE_COLOR;
+                    drawArray(colors);
+                    await sleep(sortSpeed);
+
+                    if (array[i] > array[i + 1]) { // Jeśli bieżący element jest większy od następnego
+    
+                        [array[i], array[i + 1]] = [array[i + 1], array[i]]; // Zamień elementy
+                        swapped = true;
+
+                        // Podświetl zamienione elementy
+                        colors[i] = SWAP_COLOR;
+                        colors[i + 1] = SWAP_COLOR;
+                        drawArray(colors);
+                        await sleep(sortSpeed);
+                    }
+                    // Zresetuj kolory dla bieżących elementów na domyślne po porównaniu/zamianie
+                    colors[i] = BAR_COLOR;
+                    colors[i + 1] = BAR_COLOR;
+                }
+               
+                colors[n - 1] = SORTED_COLOR;  // Oznacz ostatni element bieżącego przejścia jako posortowany
+                n--; // Zmniejsz zakres dla następnego przejścia
+            } while (swapped); // Kontynuuj, dopóki dokonano zamiany w poprzednim przejściu
+
+            // Po pętli wszystkie elementy są posortowane, oznacz je wszystkie na zielono
+            for (let k = 0; k < array.length; k++) {
+                colors[k] = SORTED_COLOR;
+            }
+            drawArray(colors);
+        }
+
+        // Quick Sort
+        async function quickSort(arr, low, high) {
+            if (!isSorting || low >= high) return; // Warunek bazowy lub jeśli naciśnięto przycisk Stop
+
+            const colors = {}; // Obiekt do przechowywania aktualnych kolorów słupków
+
+            // Funkcja partycjonowania (zintegrowana)
+            const pivotValue = arr[high]; // Wybierz ostatni element jako pivot
+            let i = low; // Indeks mniejszego elementu
+
+            // Podświetl pivot
+            colors[high] = DEFAULT_COLOR; // Lub konkretny kolor pivota, jeśli pożądane
+            drawArray(colors);
+            await sleep(sortSpeed);
+
+            for (let j = low; j < high; j++) {
+                if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+
+                // Podświetl elementy porównywane z pivotem
+                colors[j] = COMPARE_COLOR;
+                colors[i] = COMPARE_COLOR; // Podświetl potencjalny cel zamiany
+                drawArray(colors);
+                await sleep(sortSpeed);
+
+                if (arr[j] < pivotValue) { // Jeśli bieżący element jest mniejszy od pivota
+                    [arr[i], arr[j]] = [arr[j], arr[i]]; // Zamień elementy
+
+                    // Podświetl zamienione elementy
+                    colors[i] = SWAP_COLOR;
+                    colors[j] = SWAP_COLOR;
+                    drawArray(colors);
+                    await sleep(sortSpeed);
+
+                    colors[i] = BAR_COLOR; // Zresetuj kolor po zamianie
+                    colors[j] = BAR_COLOR;
+                    i++; // Przejdź do następnej pozycji dla mniejszych elementów
+                } else {
+                    colors[j] = BAR_COLOR; // Zresetuj kolor, jeśli nie zamieniono
+                    colors[i] = BAR_COLOR;
+                }
+            }
+
+            // Umieść element pivota w jego prawidłowej posortowanej pozycji
+            [arr[i], arr[high]] = [arr[high], arr[i]];
+
+            // Podświetl pivot w jego ostatecznej posortowanej pozycji
+            colors[i] = SORTED_COLOR;
+            colors[high] = BAR_COLOR; // Zresetuj kolor starej pozycji pivota
+            drawArray(colors);
+            await sleep(sortSpeed);
+
+            // Rekurencyjnie sortuj elementy przed i po pivocie
+            await quickSort(arr, low, i - 1);
+            await quickSort(arr, i + 1, high);
+        }
+
+        // Sortowanie przez wybór
+        async function selectionSort() {
+            const colors = {}; // Obiekt do przechowywania aktualnych kolorów słupków
+            for (let i = 0; i < array.length - 1; i++) {
+                if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+
+                let minIndex = i;
+                // Podświetl bieżący element rozważany jako minimum
+                colors[minIndex] = DEFAULT_COLOR; // Lub konkretny kolor 'bieżący'
+                drawArray(colors);
+                await sleep(sortSpeed);
+
+                for (let j = i + 1; j < array.length; j++) {
+                    if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+
+                    // Podświetl porównywany element
+                    colors[j] = COMPARE_COLOR;
+                    drawArray(colors);
+                    await sleep(sortSpeed);
+
+                    if (array[j] < array[minIndex]) {
+                        colors[minIndex] = BAR_COLOR; // Zresetuj kolor poprzedniego minimum
+                        minIndex = j; // Zaktualizuj indeks minimum
+                        colors[minIndex] = DEFAULT_COLOR; // Podświetl nowe minimum
+                        drawArray(colors);
+                        await sleep(sortSpeed);
+                    } else {
+                        colors[j] = BAR_COLOR; // Zresetuj kolor porównywanego elementu
+                    }
+                }
+
+                if (minIndex !== i) {
+                    
+                    [array[i], array[minIndex]] = [array[minIndex], array[i]];// Wykonaj zamianę
+
+                    // Podświetla zamienione elementy
+                    colors[i] = SWAP_COLOR;
+                    colors[minIndex] = SWAP_COLOR;
+                    drawArray(colors);
+                    await sleep(sortSpeed);
+                }
+
+                
+                colors[i] = SORTED_COLOR; // Oznacz element na pozycji 'i' jako posortowany
+                colors[minIndex] = BAR_COLOR; // Zresetuj kolor elementu, który został zamieniony na minIndex
+                drawArray(colors);
+            }
+
+            
+            colors[array.length - 1] = SORTED_COLOR; // Oznacz ostatni element jako posortowany (będzie na swoim miejscu po pętli)
+            drawArray(colors);
+        }
+
+        // Sortowanie przez wstawianie
+        async function insertionSort() {
+            const colors = {}; // Obiekt do przechowywania aktualnych kolorów słupków
+            for (let i = 1; i < array.length; i++) {
+                if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+
+                let key = array[i];
+                let j = i - 1;
+
+                // Podświetl element do wstawienia
+                colors[i] = COMPARE_COLOR
+                drawArray(colors);
+                await sleep(sortSpeed);
+
+                while (j >= 0 && array[j] > key) {
+                    if (!isSorting) return; // Wyjdź, jeśli naciśnięto przycisk Stop
+
+                    array[j + 1] = array[j]; // Przesuń elementy w prawo
+
+                    // Podświetl przesuwane elementy
+                    colors[j] = SWAP_COLOR;
+                    colors[j + 1] = SWAP_COLOR;
+                    drawArray(colors);
+                    await sleep(sortSpeed);
+
+                    colors[j] = BAR_COLOR; // Zresetuj kolor po przesunięciu
+                    j--;
+                }
+
+                array[j + 1] = key; // Umieść klucz w jego prawidłowej pozycji
+
+                // Oznacz wstawiony element jako posortowany (lub po prostu zresetuj jego kolor)
+                colors[j + 1] = SORTED_COLOR;
+                colors[i] = BAR_COLOR; // Zresetuj oryginalną pozycję klucza
+                drawArray(colors);
+                await sleep(sortSpeed); // Krótkie opóźnienie, aby zobaczyć wstawienie
+            }
+
+            // Po pętli wszystkie elementy są posortowane, oznacz je wszystkie na zielono
+            const sortedColors = {};
+            for (let k = 0; k < array.length; k++) {
+                sortedColors[k] = SORTED_COLOR;
+            }
+            drawArray(sortedColors);
+        }
+
+        // Sortowanie przez scalanie
+        async function mergeSort(arr, start = 0, end = arr.length - 1) {
+            if (start >= end || !isSorting) return; // Warunek bazowy rekurencji lub jeśli naciśnięto przycisk Stop to zakończ rekurencję
+
+            const mid = Math.floor((start + end) / 2);
+
+            // Rekurencyjnie sortuj lewą i prawą połowę
+            await mergeSort(arr, start, mid);
+            await mergeSort(arr, mid + 1, end);
+
+            if (!isSorting) return;  // Jeśli sortowanie zostało zatrzymane podczas rekurencji, wyjdź
+
+            // Scal dwie posortowane połowy
+            const mergedColors = {}; // Kolory dla procesu scalania
+            const temp = [];
+            let i = start, j = mid + 1;
+
+            while (i <= mid && j <= end) {
+                if (!isSorting) return;
+
+                // Podświetl porównywane elementy
+                mergedColors[i] = COMPARE_COLOR;
+                mergedColors[j] = COMPARE_COLOR;
+                drawArray(mergedColors);
+                await sleep(sortSpeed);
+
+                if (arr[i] <= arr[j]) {
+                    temp.push(arr[i]);
+                    mergedColors[i] = BAR_COLOR; // Zresetuj kolor
+                    i++;
+                } else {
+                    temp.push(arr[j]);
+                    mergedColors[j] = BAR_COLOR; // Zresetuj kolor
+                    j++;
+                }
+            }
+
+            // Dodaj pozostałe elementy z lewej połowy
+            while (i <= mid) {
+                if (!isSorting) return;
+                temp.push(arr[i]);
+                mergedColors[i] = COMPARE_COLOR;
+                drawArray(mergedColors);
+                await sleep(sortSpeed);
+                mergedColors[i] = BAR_COLOR; // Zresetuj kolor
+                i++;
+            }
+
+            // Dodaj pozostałe elementy z prawej połowy
+            while (j <= end) {
+                if (!isSorting) return;
+                temp.push(arr[j]);
+                mergedColors[j] = COMPARE_COLOR;
+                drawArray(mergedColors);
+                await sleep(sortSpeed);
+                mergedColors[j] = BAR_COLOR; // Zresetuj kolor
+                j++;
+            }
+
+            // Skopiuj scalone elementy z powrotem do oryginalnej tablicy i zwizualizuj
+            for (let k = start; k <= end; k++) {
+                arr[k] = temp[k - start];
+                mergedColors[k] = SORTED_COLOR; // Oznacz jako posortowane podczas kopiowania z powrotem
+                drawArray(mergedColors);
+                await sleep(sortSpeed);
+            }
+        }
+
+
+        // Funkcja do wyświetlania pola informacyjnego algorytmu
+        function showAlgorithmInfo(algorithmId) {
+            const info = algorithmDescriptions[algorithmId];
+
+            if (!info) {
+                console.error(`Brak informacji dla algorytmu: ${algorithmId}`);
+                return;
+            }
+
+            infoBoxTitle.textContent = info.title; // Ustaw tytuł pola informacyjnego
+            infoBoxDescription.innerHTML = info.description; // Użyj innerHTML dla LaTeXa
+
+            // Znajdź aktualnie zaznaczony przycisk algorytmu, aby ustawić pozycję pola informacyjnego
+            const selectedButton = document.querySelector('.algorithm-button.selected'); // Pobierz aktualnie zaznaczony przycisk algorytmu
+            if (!selectedButton) {  // Jeśli żaden algorytm nie jest wybrany, ustaw pozycję względem samego przycisku info
+
+                const infoButtonRect = infoButton.getBoundingClientRect();
+                const mainRect = document.querySelector('main').getBoundingClientRect();
+                let top = infoButtonRect.top - mainRect.top + infoButtonRect.height + 10;
+                let left = infoButtonRect.left - mainRect.left;
+
+                if (left + algorithmInfoBox.offsetWidth > mainRect.width) { // Dostosuj pozycję, jeśli wychodzi poza ekran
+                    left = mainRect.width - algorithmInfoBox.offsetWidth - 10;
+                }
+                if (left < 0) {
+                    left = 10;
+                }
+                // Ustawia pozycję pola informacyjnego względem przycisku "O algorytmie"
+                algorithmInfoBox.style.top = `${top}px`; // Ustaw górną pozycję
+                algorithmInfoBox.style.left = `${left}px`; // Ustaw lewą pozycję
+
+            } else {
+                // Ustawia pozycję pola informacyjnego względem aktualnie wybranego przycisku algorytmu
+                const buttonRect = selectedButton.getBoundingClientRect();
+                const mainRect = document.querySelector('main').getBoundingClientRect();
+
+                // Oblicza pozycję względem elementu 'main'
+                let top = buttonRect.top - mainRect.top + buttonRect.height + 10; // 10px poniżej przycisku
+                let left = buttonRect.left - mainRect.left;
+
+                // Dostosuj, jeśli pole informacyjne wychodzi poza ekran po prawej stronie
+                if (left + algorithmInfoBox.offsetWidth > mainRect.width) {
+                    left = mainRect.width - algorithmInfoBox.offsetWidth - 10; // 10px od prawej krawędzi
+                }
+                // Dostosowuje, jeśli pole informacyjne wychodzi poza ekran po lewej stronie
+                if (left < 0) {
+                    left = 10; // 10px od lewej krawędzi
+                }
+                algorithmInfoBox.style.top = `${top}px`;
+                algorithmInfoBox.style.left = `${left}px`;
+            }
+            
+            algorithmInfoBox.classList.add('visible');
+        }
+
+        function hideAlgorithmInfo() {  // Funkcja do ukrywania pola informacyjnego algorytmu
+            algorithmInfoBox.classList.remove('visible');
+        }
+
+        // Listenery do inicjalizacji i obsługi zdarzeń
+
+        window.addEventListener('DOMContentLoaded', init);  // Inicjalizacja po załadowaniu zawartości DOM
+        window.addEventListener('resize', () => {     // Ponowne obliczenie rozmiaru canvasa i ponowne rysowanie po zmianie rozmiaru okna
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            drawArray(); // Ponowne rysowanie tablicy po zmianie rozmiaru
+            hideAlgorithmInfo(); // Ukryj pole informacyjne po zmianie rozmiaru
+        });
+
+        generateButton.addEventListener('click', generateArray); 
+        generateFromNButton.addEventListener('click', generateArrayFromN);
+
+        speedSlider.addEventListener('input', () => {         // Suwak prędkości
+            sortSpeed = Number(speedSlider.value);
+            speedValue.textContent = speedSlider.value;
+        });
+
+        sizeSlider.addEventListener('input', () => {      // Suwak rozmiaru tablicy
+            sizeValue.textContent = sizeSlider.value;
+            //if (!isSorting) generateArray();  // Generuj nową tablicę tylko jeśli sortowanie nie jest aktywne
+        });
+
+        noDelayCheckbox.addEventListener('change', () => {  // Checkbox 'bez opóźnienia'
+            speedSlider.disabled = noDelayCheckbox.checked; // Wyłącz suwak prędkości, jeśli zaznaczono 'bez opóźnienia'
+        });
+
+        // Funkcja do zaznaczania algorytmu sortowania i ukrywania pola informacyjnego
+        function selectAlgorithm(btn) { 
+            algorithmButtonsList.forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            currentAlgorithm = btn.dataset.algorithmId; // Pobierz ID algorytmu z atrybutu data
+            hideAlgorithmInfo(); // Ukryj pole informacyjne, gdy wybrano nowy algorytm
+        }
+
+        bubbleSortButton.addEventListener('click', () => selectAlgorithm(bubbleSortButton));
+        quickSortButton.addEventListener('click', () => selectAlgorithm(quickSortButton));
+        selectionSortButton.addEventListener('click', () => selectAlgorithm(selectionSortButton));
+        insertionSortButton.addEventListener('click', () => selectAlgorithm(insertionSortButton));
+        mergeSortButton.addEventListener('click', () => selectAlgorithm(mergeSortButton));
+
+        // Przycisk rozpoczęcia sortowania
+        startButton.addEventListener('click', () => {
+            if (currentAlgorithm) { // Sprawdź, czy wybrano algorytm
+                startSorting(currentAlgorithm);
+            }
+        });
+
+        // Przycisk zatrzymania sortowania
+        stopButton.addEventListener('click', () => {
+            isSorting = false; // Ustaw flagę, aby zatrzymać pętle sortowania
+            toggleControls(false); // Ponownie włącz kontrolki
+            drawArray(); // Ponowne narysowanie tablicy w jej aktualnym (ewentualnie częściowo posortowanym) stanie
+            hideAlgorithmInfo(); // Ukryj pole informacyjne po zatrzymaniu
+        });
+
+        // Listener kliknięcia przycisku "O algorytmie"
+        infoButton.addEventListener('click', () => {
+            if (currentAlgorithm) {
+                showAlgorithmInfo(currentAlgorithm);
+            } else {                 // Opcjonalnie, pokaż wiadomość, jeśli żaden algorytm nie jest wybrany
+                infoBoxTitle.textContent = "Brak wybranego algorytmu";
+                infoBoxDescription.textContent = "Wybierz algorytm sortowania, aby wyświetlić jego opis.";
+                const infoButtonRect = infoButton.getBoundingClientRect(); // Pobierz pozycję przycisku "O algorytmie"
+                const mainRect = document.querySelector('main').getBoundingClientRect(); // Pobierz pozycję elementu 'main'
+                algorithmInfoBox.style.top = `${infoButtonRect.top - mainRect.top + infoButtonRect.height + 10}px`; // Ustaw górną pozycję dla pola informacyjnego
+                algorithmInfoBox.style.left = `${infoButtonRect.left - mainRect.left}px`; // Ustaw lewą pozycję dla pola informacyjnego
+                algorithmInfoBox.classList.add('visible'); // Dodaje klasę aby pokazać pole informacyjne
+            }
+        });
+
+        // Ukryj pole informacyjne, jeśli kliknięto poza przyciskami lub samym polem informacyjnym
+        document.addEventListener('click', (event) => {
+            const isClickInsideInfoBox = algorithmInfoBox.contains(event.target);
+            const isClickOnAlgorithmButton = Array.from(algorithmButtonsList).some(button => button.contains(event.target));
+            const isClickOnInfoButton = infoButton.contains(event.target);
+
+            if (!isClickInsideInfoBox && !isClickOnAlgorithmButton && !isClickOnInfoButton) {
+                hideAlgorithmInfo();
+            }
+        });
+    </script>
+</body>
+</html>
